@@ -33,14 +33,15 @@ from pathlib import Path
 def get_argument():
     # get the argment
     parser = argparse.ArgumentParser(description='training of Pytorch ResNet for SAT dataset')
-    parser.add_argument('--batch_size', type=int, default=256, help='input batch size for training (default:128)')
-    parser.add_argument('--epochs', type=int, default=240, help='number of the epoch to train (default:120)')
-    parser.add_argument('--lr', type=float, default=0.1, help='initial learning rate for training (default:0.1)')
+    parser.add_argument('--batch_size', type=int, default=256, help='input batch size for training (default:256)')
+    parser.add_argument('--epochs', type=int, default=200, help='number of the epoch to train (default:200)')
+    parser.add_argument('--lr', type=float, default=0.01, help='initial learning rate for training (default:0.01)')
     parser.add_argument('--momentum', type=float, default=0.9, help='SGD momentum (default:0.9)')
     parser.add_argument('--weight_decay', type=float, default=0.0001, help='weight decay (default:0.0001)')
-    parser.add_argument('--band_num', type=int, default=4, help='number of band (default:4)')
     parser.add_argument('--dropout_ratio', type=float, default=0, help='drop out ratio (default:0)')
     parser.add_argument('--pretrained_model_path', type=str, default=None, help='the path of pretrained model')
+    parser.add_argument('--milestones', type=list, default=[100], help='epoch that reduce the learning rate (default:[100])')
+    parser.add_argument('embedding_dimension', type=int, default=6, help='dimension of embedded feature (default:6)')
     parser.add_argument('data_path', type=str, help='the path of training dataset (mat)')
     parser.add_argument('outdir_path', type=str, help='directory path of outputs')
     args = parser.parse_args()
@@ -62,7 +63,7 @@ def main(args):
 
     # Setting the network
     c, h, w = train_dataset[0][0].shape
-    net = autoencoder.AutoEncoder(c * h * w, 10)
+    net = autoencoder.AutoEncoder(c * h * w, args.embedding_dimension)
     ## initialization with pre-trained weight
     if args.pretrained_model_path:
         print('load the pretraind model.')
@@ -73,7 +74,7 @@ def main(args):
     # Define a Loss function and optimizer
     criterion = nn.MSELoss().cuda()
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[80, 160], gamma=0.1)
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
     # initialize the best accuracy and best model weights
     best_model_wts = net.state_dict()
@@ -145,8 +146,24 @@ def main(args):
     net.load_state_dict(best_model_wts)
     return net, loss_history
 
+def write_parameters(args):
+    import csv
+    fout = open(Path(args.outdir_path).joinpath('experimental_settings.csv'), "wt")
+    csvout = csv.writer(fout)
+    print('*' * 50)
+    print('Parameters')
+    print('*' * 50)
+    for arg in dir(args):
+        if not arg.startswith('_'):
+            csvout.writerow([arg,  str(getattr(args, arg))])
+            print('%-25s %-25s' % (arg , str(getattr(args, arg))))
+
 if __name__ == '__main__':
+    # get the arguments and write the log
     args = get_argument()
+    write_parameters(args)
+
+    # train the network and output the result
     model_weights, loss_history = main(args)
     torch.save(model_weights.state_dict(), Path(args.outdir_path).joinpath('weight.pth'))
     training_history = np.zeros((2, args.epochs))
