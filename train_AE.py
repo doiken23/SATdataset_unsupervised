@@ -69,7 +69,7 @@ def main(args):
     net.initialization()
 
     # Define a Loss function and optimizer
-    criterion = nn.BCELoss().cuda()
+    criterion = nn.MSELoss().cuda()
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=0.1)
 
