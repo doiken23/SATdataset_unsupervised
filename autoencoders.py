@@ -123,13 +123,13 @@ class Stacked_AutoEncoder(nn.Module):
 
 
 class Convolutional_AutoEncoder(nn.Module):
-    def  __init__(self, embedding_dimension):
+    def  __init__(self, band_num, embedding_dimension):
         super(Convolutional_AutoEncoder, self).__init__()
 
         # define the network
         # encoder
         self.conv1 = nn.Sequential(nn.ZeroPad2d((1,2,1,2)),
-                              nn.Conv2d(1, 32, kernel_size=5, stride=2),
+                              nn.Conv2d(4, 32, kernel_size=5, stride=2),
                               nn.ReLU())
         self.conv2 = nn.Sequential(nn.ZeroPad2d((1,2,1,2)),
                               nn.Conv2d(32, 64, kernel_size=5, stride=2),
@@ -145,7 +145,7 @@ class Convolutional_AutoEncoder(nn.Module):
                                nn.ReLU())
         self.conv2d = nn.Sequential(nn.ConvTranspose2d(64, 32, kernel_size=5, stride=2),
                                nn.ReLU())
-        self.conv1d = nn.ConvTranspose2d(32, 1, kernel_size=5, stride=2)
+        self.conv1d = nn.ConvTranspose2d(32, band_num, kernel_size=5, stride=2)
 
     def forward(self, x):
         encoded = self.fc1(self.conv3(self.conv2(self.conv1(x))))
