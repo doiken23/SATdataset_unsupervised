@@ -1,11 +1,15 @@
 import torch
+import torch.utils.data as data_utils
 from torch.autograd import Variable
 import autoencoders
+from sat_dataset import SAT_Dataset
 
+import argparse
 import numpy as np
 from pathlib import Path
 import os
 from tqdm import tqdm
+import time
 
 
 def get_arguments():
@@ -26,15 +30,17 @@ def main(args):
     val_dataset   = SAT_Dataset(args.dataset, phase='val')
 
     train_loader = data_utils.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
-    val_loader   = data_utile.DataLoader(val_dataset,   batch_size=args.batch_size, num_workers=2)
+    val_loader   = data_utils.DataLoader(val_dataset,   batch_size=args.batch_size, num_workers=2)
     loaders = {'train': train_loader, 'val': val_loader}
 
-    n, h, w = dataset[0].shape
+    n, h, w = train_dataset[0][0].shape
     print('Complete making dataset')
 
     # setting network
-    if (args.ae == 'AE') or (argss.ae == 'SAE'):
+    if args.ae == 'AE':
         net = autoencoders.AutoEncoder(n*h*w, args.ed)
+    elif args.ae == 'SAE':
+        net = autoencoders.Stacked_AutoEncoder(n*h*w, args.ed)
     elif args.ae == 'CAE':
         net = autoencoders.Convolutional_AutoEncoder(n, args.ed)
     else:
@@ -44,11 +50,11 @@ def main(args):
     net.load_state_dict(th)
 
     net.cuda()
+    print('Complete setting the network')
 
     # extract features from images
     for phase in ['train', 'val']:
-        extracted_features = np.empty((0, 0))
-        for data in loaders(phase):
+        for i, data in enumerate(tqdm(loaders[phase])):
             # make input data
             inputs, _ = data
             inputs = inputs.float().cuda() / 255
@@ -62,14 +68,17 @@ def main(args):
             encoded  = net(inputs)[0]
 
             # convert to numpy
-            encoded = torch.Tensor.numpy(encoded.data())
-            extracted_features = np.vstack((extracted_features, encoded))
+            encoded = encoded.data.cpu().numpy()
+            if i == 0:
+                extracted_features = encoded
+            else:
+                extracted_features = np.vstack((extracted_features, encoded))
 
         # save the extraced features
         name = 'encoded_feature_{}.npy'.format(phase)
-        np.save(Path(out_dir).joinpath(name), extracted_features)
+        np.save(Path(args.out_dir).joinpath(name), extracted_features)
 
-if __ name__ == '__main__':
+if __name__ == '__main__':
     start = time.time()
     args = get_arguments()
     main(args)
