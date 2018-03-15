@@ -3,6 +3,7 @@
 ##############################################
 
 import torch.nn as nn
+import torch.nn.functional as F
 
 class AutoEncoder(nn.Module):
     def __init__(self, input_size, embedding_dimension):
@@ -147,6 +148,7 @@ class Convolutional_AutoEncoder(nn.Module):
                                nn.ReLU())
         self.conv1d = nn.ConvTranspose2d(32, band_num, kernel_size=5, stride=2)
 
+
     def forward(self, x):
         encoded = self.fc1(self.conv3(self.conv2(self.conv1(x))))
 
@@ -155,5 +157,62 @@ class Convolutional_AutoEncoder(nn.Module):
         decoded = self.conv2d(decoded)[:,:,1:-2,1:-2]
         decoded = self.conv1d(decoded)[:,:,1:-2,1:-2]
         decoded = nn.Sigmoid()(decoded)
+
+        return encoded, decoded
+        
+class Convolutional_AutoEncoder2(nn.Module):
+    def __init__(self, band_num, embedding_dimension):
+        super(Convolutional_AutoEncoder2, self).__init__()
+
+        # define the network
+        self.embedding_dimension = embedding_dimension
+
+        # encoder
+        self.encoder1 = nn.Sequential(nn.Conv2d(band_num, 32, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(32),
+                                     nn.ReLU(),
+                                     nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(32),
+                                     nn.ReLU())
+        self.encoder2 = nn.Sequential(nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(64),
+                                     nn.ReLU(),
+                                     nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(64),
+                                     nn.ReLU())
+        self.encoder3 = nn.Linear(3136, embedding_dimension)
+
+        # decoder
+        self.decoder1 = nn.Linear(embedding_dimension, 3136)
+        self.decoder2 = nn.Sequential(nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(64),
+                                     nn.ReLU(),
+                                     nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(64),
+                                     nn.ReLU())
+        self.decoder3 = nn.Sequential(nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1),
+                                     nn.BatchNorm2d(32),
+                                     nn.ReLU(),
+                                     nn.Conv2d(32, band_num , kernel_size=3, stride=1, padding=1))
+                                     
+    def forward(self, x):
+        n, c, h, w = x.size()
+        # encoder
+        x = self.encoder1(x)
+        x = nn.MaxPool2d(kernel_size=2, stride=2)(x)
+        x = self.encoder2(x)
+        x = nn.MaxPool2d(kernel_size=2, stride=2)(x)
+        x = x.view(n, -1)
+        x = self.encoder3(x)
+        encoded = x
+
+        # decoder
+        x = self.decoder1(x)
+        x = x.view(n, 64, int(h/4), int(w/4))
+        x = F.upsample(x, scale_factor=2, mode='bilinear')
+        x = self.decoder2(x)
+        x = F.upsample(x, scale_factor=2, mode='bilinear')
+        x = self.decoder3(x)
+        decoded = x
 
         return encoded, decoded
