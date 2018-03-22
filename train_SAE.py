@@ -102,7 +102,7 @@ def main(args):
                 optimizer.zero_grad()
 
                 # forward
-                outputs = net(inputs)[2][stack_num]
+                outputs = F.sigmoid(net(inputs)[2][stack_num])
                 loss = criterion(outputs, inputs)
 
                 # backward + optimize if in training phase
@@ -157,7 +157,7 @@ def main(args):
                 optimizer.zero_grad()
 
                 # forward
-                _, outputs, _ = net(inputs)
+                outputs = F.sigmoid(net(inputs)[1])
                 loss = criterion(outputs, inputs)
 
                 # backward + optimize if in training phase
