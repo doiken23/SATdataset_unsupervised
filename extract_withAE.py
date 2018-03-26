@@ -28,10 +28,12 @@ def main(args):
     # make dataset
     train_dataset = SAT_Dataset(args.dataset, phase='train')
     val_dataset   = SAT_Dataset(args.dataset, phase='val')
+    test_dataset  = SAT_Dataset(args.dataset, phase='test')
 
     train_loader = data_utils.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=2)
     val_loader   = data_utils.DataLoader(val_dataset,   batch_size=args.batch_size, num_workers=2)
-    loaders = {'train': train_loader, 'val': val_loader}
+    test_loader  = data_utils.DataLoader(test_dataset,  batch_size=args.batch_size, num_workers=2)
+    loaders = {'train': train_loader, 'val': val_loader, 'test': test_loader}
 
     n, h, w = train_dataset[0][0].shape
     print('Complete making dataset')
@@ -53,7 +55,7 @@ def main(args):
     print('Complete setting the network')
 
     # extract features from images
-    for phase in ['train', 'val']:
+    for phase in ['train', 'val', 'test']:
         for i, data in enumerate(tqdm(loaders[phase])):
             # make input data
             inputs, _ = data
