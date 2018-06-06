@@ -1,6 +1,6 @@
-##### ################################# #####
+#############################################
 ##### This code is written by Doi Kento #####
-##### ################################# #####
+#############################################
 
 import torch
 import torch.utils.data as data_utils
@@ -35,7 +35,7 @@ class SAT_Dataset(data_utils.Dataset):
         if self.transform:
             img = self.transform(img)
 
-        return [img, self.targets[:, idx] == 1)[0][0]]
+        return (img, np.where(self.targets[:, idx] == 1)[0][0])
 
     def __len__(self):
         return self.targets.shape[1]
