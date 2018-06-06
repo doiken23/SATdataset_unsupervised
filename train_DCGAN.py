@@ -60,7 +60,7 @@ trans = transforms.Compose([
         np_transforms.Numpy_Rotate(),
 ])
 dataset = SAT_Dataset(args.data_path, phase='train', transform=trans)
-data_loader = data_utils.DataLoader(dataset, args.batch_size, shuffle=True, num_workers=4)
+data_loader = data_utils.DataLoader(dataset, args.batch_size, shuffle=True, num_workers=1)
 
 # prepare network
 D = Discriminator(ndf=args.ndf).cuda()
@@ -133,7 +133,7 @@ for i in tqdm(range(args.epochs)):
     print('epoch: {}'.format(i+1), flush=True)
     print('real acc: {}'.format(running_d_true), flush=True)
     print('fake acc: {}'.format(running_d_fake), flush=True)
-    generated_img = G(Variable(torch.rand((100, 50)).cuda())).data.cpu().numpy().reshape(100,32,32)
+    generated_img = G(Variable(torch.rand((100, 50)).cuda())).data.cpu().numpy().reshape(100, 4, 32, 32).transpose(0, 2, 3, 1)[:,:,:,:3]
     if (i+1) % 5 == 0:
         for k in range(100):
             plt.subplot(10,10,k+1)
