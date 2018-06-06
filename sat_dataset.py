@@ -30,7 +30,12 @@ class SAT_Dataset(data_utils.Dataset):
         self.transform = transform
 
     def __getitem__(self, idx):
-        return [self.image_arrays[idx,:,:,:], np.where(self.targets[:, idx] == 1)[0][0]]
+        img = self.image_arrays[idx,:,:,:]
+
+        if self.transform:
+            img = self.transform(img)
+
+        return [img, self.targets[:, idx] == 1)[0][0]]
 
     def __len__(self):
         return self.targets.shape[1]
