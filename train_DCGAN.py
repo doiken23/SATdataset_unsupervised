@@ -146,7 +146,7 @@ for i in tqdm(range(args.epochs)):
             plt.axis('off')
         plt.savefig('{}/generated_img_epoch{}.png'.format(args.output_dir, i+1))
         # save model weights
-        torch.save(D.state_dict(), os.path.join(args.outout_dir, 'D_ep{}.pt'.format(i+1)))
+        torch.save(D.state_dict(), os.path.join(args.output_dir, 'D_ep{}.pt'.format(i+1)))
         torch.save(G.state_dict(), os.path.join(args.output_dir, 'G_ep{}.pt'.format(i+1)))
         
 plt.close()
