@@ -24,7 +24,6 @@ import numpy_transforms as np_transforms
 from utils import writeout_args
 
 import os
-from pathlib import Path
 import argparse
 import numpy as np
 import matplotlib as mpl
@@ -147,8 +146,8 @@ for i in tqdm(range(args.epochs)):
             plt.axis('off')
         plt.savefig('{}/generated_img_epoch{}.png'.format(args.output_dir, i+1))
         # save model weights
-        torch.save(D.state_dict(), Path(args.outout_dir).joinpath('D_ep{}.pt'))
-        torch.save(G.state_dict(), Path(args.output_dir).joinpath('G_ep{}.pt'))
+        torch.save(D.state_dict(), os.path.join(args.outout_dir, 'D_ep{}.pt'.format(i+1)))
+        torch.save(G.state_dict(), os.path.join(args.output_dir, 'G_ep{}.pt'.format(i+1)))
         
 plt.close()
 
