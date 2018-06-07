@@ -6,3 +6,4 @@ processed
 output*/
 .ipynb_checkpoints/
 *.ipynb
+result*
