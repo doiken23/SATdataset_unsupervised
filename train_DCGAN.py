@@ -21,8 +21,10 @@ import  torchvision.transforms as transforms
 import models
 from sat_dataset import SAT_Dataset
 import numpy_transforms as np_transforms
+from utils import writeout_args
 
 import os
+from pathlib import Path
 import argparse
 import numpy as np
 import matplotlib as mpl
@@ -45,6 +47,9 @@ parser.add_argument('--momentum', type=float, default=0.5, help='momentum (defau
 parser.add_argument('--ndf', type=int, default=128, help='number of discriminator feature map (default: 128)')
 parser.add_argument('--ngf', type=int, default=128, help='number of generator feature map (default: 128)')
 args = parser.parse_args()
+
+# write out arguments
+writeout_args(args, args.output_dir)
 
 # make output dir
 if not os.path.exists(args.output_dir):
@@ -134,12 +139,16 @@ for i in tqdm(range(args.epochs)):
     print('real acc: {}'.format(running_d_true), flush=True)
     print('fake acc: {}'.format(running_d_fake), flush=True)
     generated_img = G(Variable(torch.rand((100, 50)).cuda())).data.cpu().numpy().reshape(100, 4, 32, 32).transpose(0, 2, 3, 1)[:,:,:,:3]
+    generated_img = np.clip((generated_img + 1) * 127.5, 0, 255).astype(np.uint8)
     if (i+1) % 5 == 0:
         for k in range(100):
             plt.subplot(10,10,k+1)
             plt.imshow(generated_img[k], vmin=-1, vmax=1, cmap='gray')
             plt.axis('off')
         plt.savefig('{}/generated_img_epoch{}.png'.format(args.output_dir, i+1))
+        # save model weights
+        torch.save(D.state_dict(), Path(args.outout_dir).joinpath('D_ep{}.pt'))
+        torch.save(G.state_dict(), Path(args.output_dir).joinpath('G_ep{}.pt'))
         
 plt.close()
 
