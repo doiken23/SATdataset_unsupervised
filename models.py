@@ -37,6 +37,16 @@ class Discriminator(nn.Module):
 
         return x
 
+    def extract_feature(self, x):
+        n = x.size()[0]
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.avg_pool(x)
+        x = x.view(n, -1)
+
+        return x
+
 class Generator(nn.Module):
     
     def __init__(self, input_dim=100, ngf=32):
