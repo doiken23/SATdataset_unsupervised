@@ -55,7 +55,7 @@ def main(args):
             inputs = F.pad(inputs, (2, 2, 2, 2), mode='reflect')
 
             # extract features
-            encoded  = net.extract_feature(inputs)[0]
+            encoded  = net.extract_feature(inputs)
 
             # convert to numpy
             encoded = encoded.data.cpu().numpy()
