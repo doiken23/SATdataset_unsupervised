@@ -97,6 +97,7 @@ g_optimizer = optim.Adam(G.parameters(), lr=args.lr)
 
 # train
 training_history = np.zeros((4, args.epochs))
+print('start training!!!')
 for epoch in tqdm(range(args.epochs)):
     running_d_loss = 0
     running_g_loss = 0
