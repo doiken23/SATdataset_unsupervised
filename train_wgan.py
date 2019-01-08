@@ -69,7 +69,7 @@ trans = transforms.Compose([
 train_dataset = SATDataset(args.data, phase='train', transform=trans)
 train_loader = data_utils.DataLoader(train_dataset,
         args.batchsize, shuffle=True, num_workers=2, drop_last=True)
-test_dataset = SATDataset(args.data, phase='val')
+test_dataset = SATDataset(args.data, phase='val', transform=trans)
 test_loader = data_utils.DataLoader(test_dataset,
         args.batchsize, num_workers=2, drop_last=True)
 
@@ -88,9 +88,6 @@ def weights_init(m):
 D.apply(weights_init)
 G.apply(weights_init)
 
-# criterion
-criterion = nn.Softplus()
-
 # prepare optimizer
 d_optimizer = optim.RMSprop(D.parameters(), lr=args.lr)
 g_optimizer = optim.RMSprop(G.parameters(), lr=args.lr)
@@ -108,7 +105,7 @@ for epoch in tqdm(range(args.epochs)):
         for i in range(5):
             d_optimizer.zero_grad()
 
-            x = data[0]
+            x = data[0].to(device)
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
             z = generate_z(args.batchsize).to(device)
             
@@ -136,39 +133,42 @@ for epoch in tqdm(range(args.epochs)):
 
     running_d_loss = running_d_loss / len(train_loader)
     running_g_loss = running_g_loss / len(train_loader)
-    training_history[0, i] = running_d_loss
-    training_history[1, i] = running_g_loss
+    training_history[0, epoch] = running_d_loss
+    training_history[1, epoch] = running_g_loss
     print('\n' + '*' * 40, flush=True)
-    print('epoch: {}'.format(i+1), flush=True)
+    print('epoch: {}'.format(epoch+1), flush=True)
     print('train loss: {}'.format(running_d_loss + running_g_loss), flush=True)
     
     with torch.no_grad():
         for i, data in enumerate(test_loader):
-            x = data[0]
+            x = data[0].to(device)
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
             z = generate_z(args.batchsize).to(device)
             
             d_real = D(x)
             d_fake = D(G(z))
 
-            d_loss = criterion(-d_real) + criterion(d_fake)
+            d_loss = -torch.mean(d_real) + torch.mean(d_fake)
             running_d_loss += d_loss
             
             g_optimizer.zero_grad()
 
             z = generate_z(args.batchsize).to(device)
 
-            g_loss = criterion(-G(z))
+            g_loss = -torch.mean(D(G(z)))
             running_g_loss += g_loss
 
-    running_d_loss = running_d_loss / len(train_loader)
-    running_g_loss = running_g_loss / len(train_loader)
-    training_history[0, i] = running_d_loss
-    training_history[1, i] = running_g_loss
+    running_d_loss = running_d_loss / len(test_loader)
+    running_g_loss = running_g_loss / len(test_loader)
+    training_history[0, epoch] = running_d_loss
+    training_history[1, epoch] = running_g_loss
     print('test loss: {}'.format(running_d_loss + running_g_loss), flush=True)
 
-    generated_img = G(Variable(torch.rand((100, 50)).to(device))).data.cpu().numpy().reshape(100, 4, 32, 32).transpose(0, 2, 3, 1)[:,:,:,:3]
-    generated_img = np.clip((generated_img + 1) * 127.5, 0, 255).astype(np.uint8)
+    generated_img = G(torch.rand((100, 50)).to(device))
+    generated_img = generated_img.data.cpu().numpy().reshape(100, 4, 32, 32)
+    generated_img = generated_img.transpose(0, 2, 3, 1)[:,:,:,:3]
+    generated_img = \
+            np.clip((generated_img + 1) * 127.5, 0, 255).astype(np.uint8)
     if (i+1) % 5 == 0:
         for k in range(100):
             plt.subplot(10,10,k+1)
@@ -176,8 +176,10 @@ for epoch in tqdm(range(args.epochs)):
             plt.axis('off')
         plt.savefig('{}/generated_img_epoch{}.png'.format(args.output_dir, i+1))
         # save model weights
-        torch.save(D.state_dict(), os.path.join(args.output_dir, 'D_ep{}.pt'.format(i+1)))
-        torch.save(G.state_dict(), os.path.join(args.output_dir, 'G_ep{}.pt'.format(i+1)))
+        torch.save(D.state_dict(),
+                Path(args.output_dir).joinpath('D_ep{}.pt'.format(i+1)))
+        torch.save(G.state_dict(),
+                Path(args.output_dir).joinpath('G_ep{}.pt'.format(i+1)))
         
 plt.close()
 
