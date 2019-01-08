@@ -1,6 +1,7 @@
 #PBS -q cq
 #PBS -b 1
-#PBS -l gpunum_jobs=1
+#PBS -l cpunum_job=3
+#PBS -l gpunum_job=1
 #PBS --group=g-nedo-geospatial
 
 python train_dcgan.py \

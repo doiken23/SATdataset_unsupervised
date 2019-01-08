@@ -65,10 +65,9 @@ device = torch.device('cuda')
 
 # data loader
 trans = transforms.Compose([
-    NPSegRandomFlip(),
-    NPSegRandomRotate(),
-    transforms.Normalize([127.5] * 4, [127.5] * 4)
-])
+    transforms.ToTensor(),
+    transforms.Normalize([0.5] * 4, [0.5] * 4)
+    ])
 train_dataset = SATDataset(args.data, phase='train', transform=trans)
 train_loader = data_utils.DataLoader(train_dataset,
         args.batchsize, shuffle=True, num_workers=2, drop_last=True)
@@ -77,8 +76,8 @@ test_loader = data_utils.DataLoader(test_dataset,
         args.batchsize, num_workers=2, drop_last=True)
 
 # random generator
-def generate_z(batch_size):
-    return torch.randn((args.batch_size, 50))
+def generate_z(batchsize):
+    return torch.randn((args.batchsize, 50))
 
 # prepare network
 D = Discriminator(ndf=args.ndf).to(device)
@@ -130,7 +129,7 @@ for epoch in tqdm(range(args.epochs)):
         # update G
         g_optimizer.zero_grad()
 
-        z = generate_z(args.batch_size).to(device)
+        z = generate_z(args.batchsize).to(device)
 
         g_loss = -torch.mean(D(G(z)))
         running_g_loss += g_loss.item()
@@ -159,7 +158,7 @@ for epoch in tqdm(range(args.epochs)):
             
             g_optimizer.zero_grad()
 
-            z = generate_z(args.batch_size).to(device)
+            z = generate_z(args.batchsize).to(device)
 
             g_loss = criterion(-G(z))
             running_g_loss += g_loss
