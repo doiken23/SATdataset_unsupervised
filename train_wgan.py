@@ -65,7 +65,8 @@ device = torch.device('cuda')
 # data loader
 trans = transforms.Compose([
     NPSegRandomFlip(),
-    NPSegRandomRotate()
+    NPSegRandomRotate(),
+    transforms.Normalize([127.5] * 4, [127.5] * 4)
 ])
 train_dataset = SATDataset(args.data, phase='train', transform=trans)
 train_loader = data_utils.DataLoader(train_dataset,
@@ -93,12 +94,11 @@ G.apply(weights_init)
 criterion = nn.Softplus()
 
 # prepare optimizer
-d_optimizer = optim.Adam(D.parameters(), lr=args.lr)
-g_optimizer = optim.Adam(G.parameters(), lr=args.lr)
+d_optimizer = optim.RMSprop(D.parameters(), lr=args.lr)
+g_optimizer = optim.RMSprop(G.parameters(), lr=args.lr)
 
 # train
 training_history = np.zeros((4, args.epochs))
-print('start training!!!')
 for epoch in tqdm(range(args.epochs)):
     running_d_loss = 0
     running_g_loss = 0
@@ -107,28 +107,32 @@ for epoch in tqdm(range(args.epochs)):
 
     for data in train_loader:
         # update D
-        d_optimizer.zero_grad()
+        for i in range(5):
+            d_optimizer.zero_grad()
 
-        x = data[0]
-        x.sub_(127.5).div_(127.5).to(device)
-        x = F.pad(x, (2, 2, 2, 2), mode='reflect')
-        z = generate_z(args.batchsize).to(device)
-        
-        d_real = D(x)
-        d_fake = D(G(z))
+            x = data[0]
+            x = F.pad(x, (2, 2, 2, 2), mode='reflect')
+            z = generate_z(args.batchsize).to(device)
+            
+            d_real = D(x)
+            d_fake = D(G(z))
 
-        d_loss = criterion(-d_real) + criterion(d_fake)
-        running_d_loss += d_loss
-        d_loss.backward()
-        d_optimizer.step()
+            d_loss = -torch.mean(d_real) + torch.mean(d_fake)
+            running_d_loss += d_loss.item() / 5
+            d_loss.backward()
+            d_optimizer.step()
         
+        # clip weights of D
+        for p in D.parameters():
+            p.data.clamp_(-0.01, 0.01)
+
         # update G
         g_optimizer.zero_grad()
 
         z = generate_z(args.batch_size).to(device)
 
-        g_loss = criterion(-G(z))
-        running_g_loss += g_loss
+        g_loss = -torch.mean(D(G(z)))
+        running_g_loss += g_loss.item()
         g_loss.backward()
         g_optimizer.step()
 
@@ -142,9 +146,7 @@ for epoch in tqdm(range(args.epochs)):
     
     with torch.no_grad():
         for i, data in enumerate(test_loader):
-            # update D
             x = data[0]
-            x.sub_(127.5).div_(127.5).to(device)
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
             z = generate_z(args.batchsize).to(device)
             
@@ -154,7 +156,6 @@ for epoch in tqdm(range(args.epochs)):
             d_loss = criterion(-d_real) + criterion(d_fake)
             running_d_loss += d_loss
             
-            # update G
             g_optimizer.zero_grad()
 
             z = generate_z(args.batch_size).to(device)
