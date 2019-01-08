@@ -79,8 +79,8 @@ def generate_z(batch_size):
     return torch.randn((args.batch_size, 50))
 
 # prepare network
-D = Discriminator(ndf=args.ndf).cuda()
-G = Generator(50, ngf=args.ngf).cuda()
+D = Discriminator(ndf=args.ndf).to(device)
+G = Generator(50, ngf=args.ngf).to(device)
 ## initialization the network parameters
 def weights_init(m):
     classname = m.__class__.__name__
@@ -167,7 +167,7 @@ for epoch in tqdm(range(args.epochs)):
     training_history[1, i] = running_g_loss
     print('test loss: {}'.format(running_d_loss + running_g_loss), flush=True)
 
-    generated_img = G(Variable(torch.rand((100, 50)).cuda())).data.cpu().numpy().reshape(100, 4, 32, 32).transpose(0, 2, 3, 1)[:,:,:,:3]
+    generated_img = G(Variable(torch.rand((100, 50)).to(device))).data.cpu().numpy().reshape(100, 4, 32, 32).transpose(0, 2, 3, 1)[:,:,:,:3]
     generated_img = np.clip((generated_img + 1) * 127.5, 0, 255).astype(np.uint8)
     if (i+1) % 5 == 0:
         for k in range(100):
