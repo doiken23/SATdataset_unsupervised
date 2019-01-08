@@ -26,8 +26,6 @@ from torch.distributions import Normal
 import torchvision.datasets as datasets
 import  torchvision.transforms as transforms
 
-from torchcv.transforms import NPSegRandomFlip, NPSegRandomRotate
-
 from src import Generator, Discriminator
 from src import SATDataset
 
