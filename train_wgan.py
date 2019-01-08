@@ -8,6 +8,7 @@ import os
 import argparse
 import json
 from pathlib import Path
+from collections import OrderedDict
 
 import numpy as np
 import matplotlib as mpl
@@ -57,7 +58,7 @@ args = parser.parse_args()
 # prepare for experiments
 Path(args.log).mkdir()
 with Path(args.log).joinpath('arguments.json').open("w") as f:
-    json.dump(OrderedDict(sorted(args.items(), key=lambda x: x[0])),
+    json.dump(OrderedDict(sorted(vars(args).items(), key=lambda x: x[0])),
             f, indent=4)
 
 device = torch.device('cuda')
