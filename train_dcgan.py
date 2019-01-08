@@ -57,7 +57,8 @@ args = parser.parse_args()
 # prepare for experiments
 Path(args.log).mkdir()
 with Path(args.log).joinpath('arguments.json').open("w") as f:
-    json.dump(args, f, indent=4)
+    json.dump(OrderedDict(sorted(args.items(), key=lambda x: x[0])),
+            f, indent=4)
 
 device = torch.device('cuda')
 
