@@ -169,17 +169,17 @@ for epoch in tqdm(range(args.epochs)):
     generated_img = generated_img.transpose(0, 2, 3, 1)[:,:,:,:3]
     generated_img = \
             np.clip((generated_img + 1) * 127.5, 0, 255).astype(np.uint8)
-    if (i+1) % 5 == 0:
+    if (epoch+1) % 5 == 0:
         for k in range(100):
             plt.subplot(10,10,k+1)
             plt.imshow(generated_img[k], vmin=-1, vmax=1, cmap='gray')
             plt.axis('off')
-        plt.savefig('{}/generated_img_epoch{}.png'.format(args.output_dir, i+1))
+        plt.savefig('{}/generated_img_epoch{}.png'.format(args.log, i+1))
         # save model weights
         torch.save(D.state_dict(),
-                Path(args.output_dir).joinpath('D_ep{}.pt'.format(i+1)))
+                Path(args.log).joinpath('D_ep{}.pt'.format(i+1)))
         torch.save(G.state_dict(),
-                Path(args.output_dir).joinpath('G_ep{}.pt'.format(i+1)))
+                Path(args.log).joinpath('G_ep{}.pt'.format(i+1)))
         
 plt.close()
 
