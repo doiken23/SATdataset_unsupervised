@@ -17,14 +17,14 @@ class SATDataset(data_utils.Dataset):
     def __init__(self, data_path, phase='train', transform=None):
         self.data = io.loadmat(data_path)
         if phase == 'train':
-            self.image_arrays = self.data["train_x"][:,:,:,:300000].transpose(3,2,0,1)
+            self.image_arrays = self.data["train_x"][:,:,:,:300000].transpose(3,0,1,2)
             self.targets      = self.data["train_y"][:,:300000]
         elif phase == 'val':
-            self.image_arrays = self.data["train_x"][:,:,:,300000:].transpose(3,2,0,1)
+            self.image_arrays = self.data["train_x"][:,:,:,300000:].transpose(3,0,1,2)
             self.targets      = self.data["train_y"][:,300000:]
             
         else:
-            self.image_arrays = self.data["test_x"].transpose(3,2,0,1)
+            self.image_arrays = self.data["test_x"].transpose(3,0,1,2)
             self.targets      = self.data["test_y"]
 
         self.transform = transform
