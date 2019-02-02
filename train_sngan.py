@@ -57,7 +57,7 @@ parser.add_argument('--ngf', type=int, default=128,
 args = parser.parse_args()
 
 # prepare for experiments
-Path(args.log).mkdir()
+Path(args.log).mkdir(parents=True)
 with Path(args.log).joinpath('arguments.json').open("w") as f:
     json.dump(OrderedDict(sorted(vars(args).items(), key=lambda x: x[0])),
             f, indent=4)
@@ -83,7 +83,7 @@ def generate_z(batchsize):
 # prepare network
 D = SNGANProjectionDiscriminator(num_classes=6,
         ndf=args.ndf).to(device)
-G = SNGANGenerator(num_class=6,
+G = SNGANGenerator(num_classes=6,
         ngf=args.ngf).to(device)
 
 ## initialization the network parameters
@@ -120,8 +120,8 @@ for epoch in tqdm(range(args.epochs)):
         x = F.pad(x, (2, 2, 2, 2), mode='reflect')
         z = generate_z(args.batchsize).to(device)
         
-        dis_real = D(x)
-        dis_fake = D(G(z))
+        dis_real = D(x, y)
+        dis_fake = D(G(z, y), y)
 
         dis_loss = dis_criterion(dis_fake, dis_real)
         running_dis_loss += dis_loss.item()
@@ -133,7 +133,7 @@ for epoch in tqdm(range(args.epochs)):
 
         z = generate_z(args.batchsize).to(device)
 
-        dis_fake = D(G(z))
+        dis_fake = D(G(z, y), y)
         gen_loss = gen_criterion(dis_fake)
         running_gen_loss += gen_loss.item()
         gen_loss.backward()
@@ -155,8 +155,8 @@ for epoch in tqdm(range(args.epochs)):
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
             z = generate_z(args.batchsize).to(device)
             
-            dis_real = D(x)
-            dis_fake = D(G(z))
+            dis_real = D(x, y)
+            dis_fake = D(G(z, y), y)
 
             dis_loss = dis_criterion(dis_fake, dis_real)
             running_dis_loss += dis_loss.item()
@@ -166,7 +166,7 @@ for epoch in tqdm(range(args.epochs)):
 
             z = generate_z(args.batchsize).to(device)
 
-            dis_fake = D(G(z))
+            dis_fake = D(G(z, y), y)
             gen_loss = gen_criterion(dis_fake)
             running_gen_loss += gen_loss.item()
 
