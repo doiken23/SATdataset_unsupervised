@@ -90,7 +90,7 @@ class DiscriminatorResBlock(nn.Module):
 
 class SNGANProjectionDiscriminator(nn.Module):
     
-    def __init__(self, num_classes, ndf=32):
+    def __init__(self, num_classes=0, ndf=32):
         super(SNGANProjectionDiscriminator, self).__init__()
 
         self.block1 = DiscriminatorResBlock(4, ndf, downsample=True)
