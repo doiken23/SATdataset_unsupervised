@@ -112,22 +112,9 @@ for epoch in tqdm(range(args.epochs)):
     running_dis_fake = 0
 
     for data in train_loader:
-        # update D
-        d_optimizer.zero_grad()
-
         x = data[0].to(device)
         y = data[1].to(device)
-        x = F.pad(x, (2, 2, 2, 2), mode='reflect')
-        z = generate_z(args.batchsize).to(device)
-        
-        dis_real = D(x, y)
-        dis_fake = D(G(z, y), y)
 
-        dis_loss = dis_criterion(dis_fake, dis_real)
-        running_dis_loss += dis_loss.item()
-        dis_loss.backward()
-        d_optimizer.step()
-        
         # update G
         g_optimizer.zero_grad()
 
@@ -139,7 +126,22 @@ for epoch in tqdm(range(args.epochs)):
         gen_loss.backward()
         g_optimizer.step()
 
-    running_dis_loss = running_dis_loss / len(train_loader)
+        # update D
+        for i in range(5):
+            d_optimizer.zero_grad()
+
+            x = F.pad(x, (2, 2, 2, 2), mode='reflect')
+            z = generate_z(args.batchsize).to(device)
+            
+            dis_real = D(x, y)
+            dis_fake = D(G(z, y), y)
+
+            dis_loss = dis_criterion(dis_fake, dis_real)
+            running_dis_loss += dis_loss.item()
+            dis_loss.backward()
+            d_optimizer.step()
+
+    running_dis_loss = running_dis_loss / 5 / len(train_loader)
     running_gen_loss = running_gen_loss / len(train_loader)
     training_history[0, epoch] = running_dis_loss
     training_history[1, epoch] = running_gen_loss
@@ -178,10 +180,14 @@ for epoch in tqdm(range(args.epochs)):
             flush=True)
 
     if (epoch+1) % 5 == 0:
-        generated_img = G(torch.rand((100, 50)).to(device))
-        generated_img = generated_img.data.cpu()[:, :3, ...]
-        img_grid = make_grid(generated_img, nrow=10)
-        save_img(img_grid)
+        for i in range(6):
+            generated_img = G(torch.rand((100, 50),
+                torch.LongTensor([i]*100)).to(device))
+            generated_img = generated_img.data.cpu()[:, :3, ...]
+            img_grid = make_grid(generated_img,
+                    Path(args).joinpath('{}_{}.npg'.format(epoch+1, i+1)),
+                    logrow=10)
+            save_img(img_grid)
         # save model weights
         torch.save(D.state_dict(),
                 os.path.join(args.log, 'D_ep{}.pt'.format(i+1)))
