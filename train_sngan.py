@@ -25,7 +25,7 @@ import torch.utils.data as data_utils
 from torch.distributions import Normal
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-from torchvision.utils import make_grid, save_image
+from torchvision.utils import save_image
 
 from src import SATDataset
 from src import SNGANProjectionDiscriminator
@@ -61,6 +61,7 @@ Path(args.log).mkdir(parents=True)
 with Path(args.log).joinpath('arguments.json').open("w") as f:
     json.dump(OrderedDict(sorted(vars(args).items(), key=lambda x: x[0])),
             f, indent=4)
+Path(args.log).joinpath('img').mkdir()
 
 device = torch.device('cuda')
 
@@ -78,7 +79,7 @@ test_loader = data_utils.DataLoader(test_dataset,
 
 # random generator
 def generate_z(batchsize):
-    return torch.randn((args.batchsize, 100))
+    return torch.randn((batchsize, 100))
 
 # prepare network
 D = SNGANProjectionDiscriminator(num_classes=6,
@@ -181,13 +182,14 @@ for epoch in tqdm(range(args.epochs)):
 
     if (epoch+1) % 5 == 0:
         for i in range(6):
-            generated_img = G(torch.rand((100, 50),
-                torch.LongTensor([i]*100)).to(device))
+            generated_img = G(generate_z(100).to(device),
+                torch.LongTensor([i]*100).to(device))
             generated_img = generated_img.data.cpu()[:, :3, ...]
-            img_grid = make_grid(generated_img,
-                    Path(args).joinpath('{}_{}.npg'.format(epoch+1, i+1)),
-                    logrow=10)
-            save_img(img_grid)
+            plt.figure(figsize=(10, 10))
+            save_image(generated_img,
+                    str(Path(args.log).joinpath(
+                        'img/{}_{}.png'.format(epoch+1, i+1))),
+                    nrow=10)
         # save model weights
         torch.save(D.state_dict(),
                 os.path.join(args.log, 'D_ep{}.pt'.format(i+1)))
