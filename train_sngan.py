@@ -128,7 +128,7 @@ for epoch in tqdm(range(args.epochs)):
         g_optimizer.step()
 
         # update D
-        for i in range(5):
+        for i in range(3):
             d_optimizer.zero_grad()
 
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
@@ -175,8 +175,8 @@ for epoch in tqdm(range(args.epochs)):
 
     running_dis_loss = running_dis_loss / len(test_loader)
     running_gen_loss = running_gen_loss / len(test_loader)
-    training_history[0, epoch] = running_dis_loss
-    training_history[1, epoch] = running_gen_loss
+    training_history[2, epoch] = running_dis_loss
+    training_history[3, epoch] = running_gen_loss
     print('test loss: {}'.format(running_dis_loss + running_gen_loss),
             flush=True)
 
@@ -196,13 +196,11 @@ for epoch in tqdm(range(args.epochs)):
         torch.save(G.state_dict(),
                 os.path.join(args.log, 'G_ep{}.pt'.format(i+1)))
         
-plt.close()
-
-# plot training history
-plt.plot(np.arange(args.epochs), training_history[0], label='Train D Loss')
-plt.plot(np.arange(args.epochs), training_history[1], label='Train G Loss')
-plt.plot(np.arange(args.epochs), training_history[0], label='Test D Loss')
-plt.plot(np.arange(args.epochs), training_history[1], label='Test G Loss')
-plt.legend()
-plt.savefig('{}/loss.png'.format(args.log))
-plt.close()
+    # plot training history
+    plt.plot(np.arange(args.epochs), training_history[0], label='Train D Loss')
+    plt.plot(np.arange(args.epochs), training_history[1], label='Train G Loss')
+    plt.plot(np.arange(args.epochs), training_history[2], label='Test D Loss')
+    plt.plot(np.arange(args.epochs), training_history[3], label='Test G Loss')
+    plt.legend()
+    plt.savefig('{}/loss.png'.format(args.log))
+    plt.close()
