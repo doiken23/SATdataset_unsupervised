@@ -100,8 +100,8 @@ dis_criterion = DisLoss(loss_type='hinge')
 gen_criterion = GenLoss(loss_type='hinge')
 
 # prepare optimizer
-d_optimizer = optim.Adam(D.parameters(), lr=args.lr)
-g_optimizer = optim.Adam(G.parameters(), lr=args.lr)
+d_optimizer = optim.Adam(D.parameters(), lr=args.lr, betas=(0.0, 0.9))
+g_optimizer = optim.Adam(G.parameters(), lr=args.lr, betas=(0.0, 0.9))
 
 # train
 training_history = np.zeros((4, args.epochs))
