@@ -54,6 +54,8 @@ parser.add_argument('--ndf', type=int, default=128,
         help='number of discriminator feature map (default: 128)')
 parser.add_argument('--ngf', type=int, default=128,
         help='number of generator feature map (default: 128)')
+parser.add_argument('--n_dis', type=int, default=5,
+        help='number of iteration of discriminator (default: 5)')
 args = parser.parse_args()
 
 # prepare for experiments
@@ -72,10 +74,10 @@ trans = transforms.Compose([
     ])
 train_dataset = SATDataset(args.data, phase='train', transform=trans)
 train_loader = data_utils.DataLoader(train_dataset,
-        args.batchsize, shuffle=True, num_workers=2, drop_last=True)
+        args.batchsize, shuffle=True, num_workers=4, drop_last=True)
 test_dataset = SATDataset(args.data, phase='val', transform=trans)
 test_loader = data_utils.DataLoader(test_dataset,
-        args.batchsize, num_workers=2, drop_last=True)
+        args.batchsize, num_workers=4, drop_last=True)
 
 # random generator
 def generate_z(batchsize):
@@ -128,7 +130,7 @@ for epoch in tqdm(range(args.epochs)):
         g_optimizer.step()
 
         # update D
-        for i in range(3):
+        for i in range(args.n_dis):
             d_optimizer.zero_grad()
 
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
@@ -142,7 +144,7 @@ for epoch in tqdm(range(args.epochs)):
             dis_loss.backward()
             d_optimizer.step()
 
-    running_dis_loss = running_dis_loss / 5 / len(train_loader)
+    running_dis_loss = running_dis_loss / args.n_dis / len(train_loader)
     running_gen_loss = running_gen_loss / len(train_loader)
     training_history[0, epoch] = running_dis_loss
     training_history[1, epoch] = running_gen_loss
@@ -151,10 +153,15 @@ for epoch in tqdm(range(args.epochs)):
     print('train loss: {}'.format(running_dis_loss + running_gen_loss),
             flush=True)
     
+    running_dis_loss = 0
+    running_gen_loss = 0
+    running_d_true = 0
+    running_dis_fake = 0
     with torch.no_grad():
         for i, data in enumerate(test_loader):
-            # update D
+            # compute D loss
             x = data[0].to(device)
+            y = data[1].to(device)
             x = F.pad(x, (2, 2, 2, 2), mode='reflect')
             z = generate_z(args.batchsize).to(device)
             
@@ -164,9 +171,7 @@ for epoch in tqdm(range(args.epochs)):
             dis_loss = dis_criterion(dis_fake, dis_real)
             running_dis_loss += dis_loss.item()
             
-            # update G
-            g_optimizer.zero_grad()
-
+            # computer G loss
             z = generate_z(args.batchsize).to(device)
 
             dis_fake = D(G(z, y), y)
