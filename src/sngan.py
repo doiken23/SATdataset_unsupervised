@@ -55,8 +55,7 @@ class GeneratorResBlock(nn.Module):
         return h + skip
 
 class DiscriminatorResBlock(nn.Module):
-    def __init__(self, in_channels, out_channels,
-            downsample=False):
+    def __init__(self, in_channels, out_channels, downsample=False):
         super(DiscriminatorResBlock, self).__init__()
 
         self.in_channels = in_channels
@@ -90,7 +89,7 @@ class DiscriminatorResBlock(nn.Module):
 
 class SNGANProjectionDiscriminator(nn.Module):
     
-    def __init__(self, num_classes=0, ndf=32):
+    def __init__(self, num_classes=0, ndf=128):
         super(SNGANProjectionDiscriminator, self).__init__()
 
         self.block1 = DiscriminatorResBlock(4, ndf, downsample=True)
@@ -102,7 +101,6 @@ class SNGANProjectionDiscriminator(nn.Module):
         self.l_y = spectral_norm(nn.Embedding(num_classes, 4 * ndf))
 
     def forward(self, x, y):
-        n = x.size(0)
         h = x
         for i in range(1, 5):
             h = getattr(self, 'block{}'.format(i))(h)
@@ -116,7 +114,7 @@ class SNGANProjectionDiscriminator(nn.Module):
 class SNGANGenerator(nn.Module):
     
     def __init__(self, num_classes=0,
-            input_dim=100, ngf=32,
+            input_dim=100, ngf=128,
             bottom_height=4, bottom_width=4):
         super(SNGANGenerator, self).__init__()
 
@@ -125,7 +123,7 @@ class SNGANGenerator(nn.Module):
         self.bottom_height = bottom_height
         self.bottom_width = bottom_width
         self.preprocess = nn.Linear(
-                input_dim, 4 * ngf * bottom_height * bottom_height, bias=False)
+                input_dim, 4 * ngf * bottom_height * bottom_width, bias=False)
         self.block1 = GeneratorResBlock(4 * ngf, 4 * ngf,
                 num_classes=self.num_classes, upsample=True)
         self.block2 = GeneratorResBlock(4 * ngf, 2 * ngf,
@@ -137,7 +135,7 @@ class SNGANGenerator(nn.Module):
         
     def forward(self, z, y):
         h = self.preprocess(z).view(
-                z.size(0), -1, self.bottom_width, self.bottom_width)
+                z.size(0), -1, self.bottom_height, self.bottom_width)
         for i in range(1, 4):
             h = getattr(self, 'block{}'.format(i))(h, y)
         h = F.relu(self.bn(h))
