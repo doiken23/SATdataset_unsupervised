@@ -70,7 +70,7 @@ device = torch.device('cuda')
 # data loader
 trans = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize([0.5] * 4, [0.5] * 5)
+    transforms.Normalize([0.5] * 4, [0.5] * 4)
     ])
 train_dataset = SATDataset(args.data, phase='train', transform=trans)
 train_loader = data_utils.DataLoader(train_dataset,
