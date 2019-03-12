@@ -68,7 +68,7 @@ class DiscriminatorResBlock(nn.Module):
                 nn.Conv2d(out_channels, out_channels, 3, stride=1, padding=1))
 
         if self.in_channels != self.out_channels:
-            self.c_sc = nn.Conv2d(in_channels, out_channels, 1)
+            self.c_sc = spectral_norm(nn.Conv2d(in_channels, out_channels, 1))
 
     def forward(self, x):
         # compute residual
@@ -87,16 +87,48 @@ class DiscriminatorResBlock(nn.Module):
 
         return h + skip
 
+class OptimizedBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, downsample=False):
+        super(OptimizedBlock, self).__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.downsample = downsample
+
+        self.c1 = spectral_norm(
+                nn.Conv2d(in_channels, out_channels, 3, stride=1, padding=1))
+        self.c2 = spectral_norm(
+                nn.Conv2d(out_channels, out_channels, 3, stride=1, padding=1))
+
+        if self.in_channels != self.out_channels:
+            self.c_sc = spectral_norm(nn.Conv2d(in_channels, out_channels, 1))
+
+    def forward(self, x):
+        # compute residual
+        h = self.c1(x)
+        h = F.relu(h)
+        h = self.c2(h)
+        if self.downsample:
+            h = F.avg_pool2d(h, 2, stride=2)
+
+        # compute skip connection
+        if self.downsample:
+            skip = F.avg_pool2d(x, 2, stride=2)
+        if self.in_channels != self.out_channels:
+            skip = self.c_sc(skip)
+
+        return h + skip
+
 class SNGANProjectionDiscriminator(nn.Module):
     
     def __init__(self, num_classes=0, ndf=128):
         super(SNGANProjectionDiscriminator, self).__init__()
 
-        self.block1 = DiscriminatorResBlock(4, ndf, downsample=True)
+        self.block1 = OptimizedBlock(4, ndf, downsample=True)
         self.block2 = DiscriminatorResBlock(ndf, 2 * ndf, downsample=True)
         self.block3 = DiscriminatorResBlock(2 * ndf, 4 * ndf, downsample=True)
         self.block4 = DiscriminatorResBlock(4 * ndf, 4 * ndf, downsample=True)
-        self.linear = nn.Linear(4 * ndf, 1)
+        self.linear = spectral_norm(nn.Linear(4 * ndf, 1))
 
         self.l_y = spectral_norm(nn.Embedding(num_classes, 4 * ndf))
 
@@ -107,7 +139,7 @@ class SNGANProjectionDiscriminator(nn.Module):
         h = F.relu(h)
         h = torch.sum(h, dim=(2, 3))
         output = self.linear(h)
-        output += torch.sum(self.l_y(y) * h, dim=1, keepdim=True)
+        output = output + torch.sum(self.l_y(y) * h, dim=1, keepdim=True)
 
         return output
 
