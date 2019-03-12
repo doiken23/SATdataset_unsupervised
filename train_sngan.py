@@ -113,6 +113,8 @@ for epoch in tqdm(range(args.epochs)):
     running_gen_loss = 0
     running_d_true = 0
     running_dis_fake = 0
+    G.train()
+    D.train()
 
     for data in train_loader:
         x = data[0].to(device)
@@ -157,6 +159,8 @@ for epoch in tqdm(range(args.epochs)):
     running_gen_loss = 0
     running_d_true = 0
     running_dis_fake = 0
+    G.eval()
+    D.eval()
     with torch.no_grad():
         for i, data in enumerate(test_loader):
             # compute D loss
@@ -197,9 +201,9 @@ for epoch in tqdm(range(args.epochs)):
                     nrow=10)
         # save model weights
         torch.save(D.state_dict(),
-                os.path.join(args.log, 'D_ep{}.pt'.format(i+1)))
+                os.path.join(args.log, 'D_ep{}.pt'.format(epoch+1)))
         torch.save(G.state_dict(),
-                os.path.join(args.log, 'G_ep{}.pt'.format(i+1)))
+                os.path.join(args.log, 'G_ep{}.pt'.format(epoch+1)))
         
     # plot training history
     plt.plot(np.arange(args.epochs), training_history[0], label='Train D Loss')
