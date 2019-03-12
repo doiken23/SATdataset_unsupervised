@@ -10,19 +10,15 @@ def dis_hinge(dis_fake, dis_real):
         torch.mean(torch.relu(1. + dis_fake))
     return loss
 
-
 def gen_hinge(dis_fake, dis_real=None):
     return -torch.mean(dis_fake)
-
 
 def dis_dcgan(dis_fake, dis_real):
     loss = torch.mean(F.softplus(-dis_real)) + torch.mean(F.softplus(dis_fake))
     return loss
 
-
 def gen_dcgan(dis_fake, dis_real=None):
     return torch.mean(F.softplus(-dis_fake))
-
 
 class _Loss(object):
 
@@ -41,7 +37,6 @@ class _Loss(object):
         C_xf_tilde = torch.mean(dis_fake, dim=0, keepdim=True).expand_as(dis_fake)
         C_xr_tilde = torch.mean(dis_real, dim=0, keepdim=True).expand_as(dis_real)
         return dis_fake - C_xr_tilde, dis_real - C_xf_tilde
-
 
 class DisLoss(_Loss):
 
@@ -63,7 +58,6 @@ class DisLoss(_Loss):
                 return -torch.log(D_xr) - torch.log(1.0 - D_xf)
             else:
                 raise NotImplementedError
-
 
 class GenLoss(_Loss):
 
