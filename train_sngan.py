@@ -56,6 +56,10 @@ parser.add_argument('--ngf', type=int, default=128,
         help='number of generator feature map (default: 128)')
 parser.add_argument('--n_dis', type=int, default=5,
         help='number of iteration of discriminator (default: 5)')
+parser.add_argument('--save_img', type=int, default=10,
+        help='the epoch that saves images')
+parser.add_argument('--checkpoint', type=int, default=50,
+        help='the epoch that saves models')
 args = parser.parse_args()
 
 # prepare for experiments
@@ -189,7 +193,7 @@ for epoch in tqdm(range(args.epochs)):
     print('test loss: {}'.format(running_dis_loss + running_gen_loss),
             flush=True)
 
-    if (epoch+1) % 5 == 0:
+    if (epoch+1) % args.save_img == 0:
         for i in range(6):
             generated_img = G(generate_z(100).to(device),
                 torch.LongTensor([i]*100).to(device))
@@ -199,6 +203,8 @@ for epoch in tqdm(range(args.epochs)):
                     str(Path(args.log).joinpath(
                         'img/{}_{}.png'.format(epoch+1, i+1))),
                     nrow=10)
+
+    if (epoch+1) % args.checkpoint == 0:
         # save model weights
         torch.save(D.state_dict(),
                 os.path.join(args.log, 'D_ep{}.pt'.format(epoch+1)))
