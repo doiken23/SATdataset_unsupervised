@@ -55,12 +55,12 @@ parser.add_argument('--ndf', type=int, default=128,
         help='number of discriminator feature map (default: 128)')
 parser.add_argument('--ngf', type=int, default=128,
         help='number of generator feature map (default: 128)')
+parser.add_argument('--loss_type', type=str, default='hinge',
+        help='the type of loss (hinge or dcgan)')
 parser.add_argument('--n_dis', type=int, default=5,
         help='number of iteration of discriminator (default: 5)')
-parser.add_argument('--visualize_interval', type=int, default=200,
+parser.add_argument('--visualize_interval', type=int, default=2000,
         help='the interval of visualization')
-parser.add_argument('--print_interval', type=int, default=100,
-        help='the interval of logging')
 parser.add_argument('--test_interval', type=int,default=200,
         help='the interval of testing')
 parser.add_argument('--checkpoint_interval', type=int, default=10000,
@@ -112,8 +112,8 @@ D.apply(weights_init)
 G.apply(weights_init)
 
 # criterion
-dis_criterion = DisLoss(loss_type='hinge')
-gen_criterion = GenLoss(loss_type='hinge')
+dis_criterion = DisLoss(loss_type=args.loss_type)
+gen_criterion = GenLoss(loss_type=args.loss_type)
 
 # prepare optimizer
 d_optimizer = optim.Adam(D.parameters(), lr=args.lr, betas=(0.0, 0.9))
@@ -158,7 +158,7 @@ for n_iter in tqdm(range(1, args.iterations + 1)):
         dis_fake = D(G(z, y), y)
 
         dis_loss = dis_criterion(dis_fake, dis_real)
-        test_running_dis_loss += dis_loss.item()
+        train_running_dis_loss += dis_loss.item()
         dis_loss.backward()
         d_optimizer.step()
 
@@ -168,13 +168,14 @@ for n_iter in tqdm(range(1, args.iterations + 1)):
         train_running_gen_loss = train_running_gen_loss / args.test_interval
         training_history[0].append(train_running_dis_loss)
         training_history[1].append(train_running_gen_loss)
-        train_running_dis_loss = 0
-        train_running_gen_loss = 0
-    if n_iter % args.print_interval == 0:
         print('\n' + '*' * 40, flush=True)
         print('Iteration: {}'.format(n_iter), flush=True)
-        print('train dis loss: {}'.format(train_running_dis_loss), flush=True)
-        print('train gen loss: {}'.format(train_running_gen_loss), flush=True)
+        print('train dis loss: {}'.format(
+            train_running_dis_loss / args.test_interval), flush=True)
+        print('train gen loss: {}'.format(
+            train_running_gen_loss / args.test_interval), flush=True)
+        train_running_dis_loss = 0
+        train_running_gen_loss = 0
     
     if n_iter % args.test_interval == 0:
         G.eval()
@@ -201,7 +202,7 @@ for n_iter in tqdm(range(1, args.iterations + 1)):
                 test_running_gen_loss += gen_loss.item()
 
         test_running_dis_loss = test_running_dis_loss / len(test_loader)
-        test_running_gen_loss = teet_running_gen_loss / len(test_loader)
+        test_running_gen_loss = test_running_gen_loss / len(test_loader)
 
         training_history[2].append(test_running_dis_loss)
         training_history[3].append(test_running_gen_loss)
@@ -225,12 +226,12 @@ for n_iter in tqdm(range(1, args.iterations + 1)):
             plt.figure(figsize=(10, 10))
             save_image(generated_img,
                     str(Path(args.log).joinpath(
-                        'img/{}_{}.png'.format(epoch+1, i+1))),
+                        'img/{}_{}.png'.format(n_iter, i+1))),
                     nrow=10)
 
     if n_iter % args.checkpoint_interval == 0:
         # save model weights
         torch.save(D.state_dict(),
-                os.path.join(args.log, 'D_ep{}.pt'.format(epoch+1)))
+                os.path.join(args.log, 'D_ep{}.pt'.format(n_iter)))
         torch.save(G.state_dict(),
-                os.path.join(args.log, 'G_ep{}.pt'.format(epoch+1)))
+                os.path.join(args.log, 'G_ep{}.pt'.format(n_iter)))
