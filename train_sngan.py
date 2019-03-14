@@ -31,6 +31,7 @@ from src import SATDataset
 from src import SNGANProjectionDiscriminator
 from src import SNGANGenerator
 from src import DisLoss, GenLoss
+from src import InfiniteSamplerWrapper
 
 # get argument
 parser = argparse.ArgumentParser(description='DCGAN for mnist')
@@ -38,8 +39,8 @@ parser.add_argument('data', type=str, default='data',
         help='directory of training data')
 parser.add_argument('--batchsize', type=int, default=100,
         help='batch size (default: 100)')
-parser.add_argument('--epochs', type=int, default=60,
-        help='epochs (default:60)')
+parser.add_argument('--iterations', type=int, default=10000,
+        help='epochs (default: 10000)')
 parser.add_argument('--log', type=str, default='result',
         help='directory of training data (default: result)')
 parser.add_argument('--mu', type=float, default=0,
@@ -56,9 +57,13 @@ parser.add_argument('--ngf', type=int, default=128,
         help='number of generator feature map (default: 128)')
 parser.add_argument('--n_dis', type=int, default=5,
         help='number of iteration of discriminator (default: 5)')
-parser.add_argument('--save_img', type=int, default=10,
-        help='the epoch that saves images')
-parser.add_argument('--checkpoint', type=int, default=50,
+parser.add_argument('--visualize_interval', type=int, default=200,
+        help='the interval of visualization')
+parser.add_argument('--print_interval', type=int, default=100,
+        help='the interval of logging')
+parser.add_argument('--test_interval', type=int,default=200,
+        help='the interval of testing')
+parser.add_argument('--checkpoint_interval', type=int, default=10000,
         help='the epoch that saves models')
 args = parser.parse_args()
 
@@ -77,11 +82,16 @@ trans = transforms.Compose([
     transforms.Normalize([0.5] * 4, [0.5] * 4)
     ])
 train_dataset = SATDataset(args.data, phase='train', transform=trans)
-train_loader = data_utils.DataLoader(train_dataset,
-        args.batchsize, shuffle=True, num_workers=4, drop_last=True)
+train_loader = iter(data_utils.DataLoader(
+        train_dataset, args.batchsize,
+        sampler=InfiniteSamplerWrapper(train_dataset),
+        num_workers=4, drop_last=True
+        ))
 test_dataset = SATDataset(args.data, phase='val', transform=trans)
-test_loader = data_utils.DataLoader(test_dataset,
-        args.batchsize, num_workers=4, drop_last=True)
+test_loader = data_utils.DataLoader(
+        test_dataset, args.batchsize,
+        num_workers=4, drop_last=True
+        )
 
 # random generator
 def generate_z(batchsize):
@@ -110,90 +120,104 @@ d_optimizer = optim.Adam(D.parameters(), lr=args.lr, betas=(0.0, 0.9))
 g_optimizer = optim.Adam(G.parameters(), lr=args.lr, betas=(0.0, 0.9))
 
 # train
-training_history = np.zeros((4, args.epochs))
+train_running_dis_loss = 0
+train_running_gen_loss = 0
+test_running_dis_loss = 0
+test_running_gen_loss = 0
+training_history = [[], [], [], []]
 print('start training!!!')
-for epoch in tqdm(range(args.epochs)):
-    running_dis_loss = 0
-    running_gen_loss = 0
-    running_d_true = 0
-    running_dis_fake = 0
+for n_iter in tqdm(range(1, args.iterations + 1)):
     G.train()
     D.train()
 
-    for data in train_loader:
-        x = data[0].to(device)
-        y = data[1].to(device)
+    x, y = next(train_loader)
+    x, y = x.to(device), y.to(device)
 
-        # update G
-        g_optimizer.zero_grad()
+    # update G
+    g_optimizer.zero_grad()
 
+    z = generate_z(args.batchsize).to(device)
+
+    dis_fake = D(G(z, y), y)
+    gen_loss = gen_criterion(dis_fake)
+    train_running_gen_loss += gen_loss.item()
+    gen_loss.backward()
+    g_optimizer.step()
+
+    # update D
+    for i in range(args.n_dis):
+        d_optimizer.zero_grad()
+
+        x, y = next(train_loader)
+        x, y = x.to(device), y.to(device)
+
+        x = F.pad(x, (2, 2, 2, 2), mode='reflect')
         z = generate_z(args.batchsize).to(device)
-
+        
+        dis_real = D(x, y)
         dis_fake = D(G(z, y), y)
-        gen_loss = gen_criterion(dis_fake)
-        running_gen_loss += gen_loss.item()
-        gen_loss.backward()
-        g_optimizer.step()
 
-        # update D
-        for i in range(args.n_dis):
-            d_optimizer.zero_grad()
+        dis_loss = dis_criterion(dis_fake, dis_real)
+        test_running_dis_loss += dis_loss.item()
+        dis_loss.backward()
+        d_optimizer.step()
 
-            x = F.pad(x, (2, 2, 2, 2), mode='reflect')
-            z = generate_z(args.batchsize).to(device)
-            
-            dis_real = D(x, y)
-            dis_fake = D(G(z, y), y)
-
-            dis_loss = dis_criterion(dis_fake, dis_real)
-            running_dis_loss += dis_loss.item()
-            dis_loss.backward()
-            d_optimizer.step()
-
-    running_dis_loss = running_dis_loss / args.n_dis / len(train_loader)
-    running_gen_loss = running_gen_loss / len(train_loader)
-    training_history[0, epoch] = running_dis_loss
-    training_history[1, epoch] = running_gen_loss
-    print('\n' + '*' * 40, flush=True)
-    print('epoch: {}'.format(epoch+1), flush=True)
-    print('train loss: {}'.format(running_dis_loss + running_gen_loss),
-            flush=True)
+    if n_iter % args.test_interval == 0:
+        train_running_dis_loss = train_running_dis_loss / \
+                (args.n_dis * args.test_interval)
+        train_running_gen_loss = train_running_gen_loss / args.test_interval
+        training_history[0].append(train_running_dis_loss)
+        training_history[1].append(train_running_gen_loss)
+        train_running_dis_loss = 0
+        train_running_gen_loss = 0
+    if n_iter % args.print_interval == 0:
+        print('\n' + '*' * 40, flush=True)
+        print('Iteration: {}'.format(n_iter), flush=True)
+        print('train dis loss: {}'.format(train_running_dis_loss), flush=True)
+        print('train gen loss: {}'.format(train_running_gen_loss), flush=True)
     
-    running_dis_loss = 0
-    running_gen_loss = 0
-    running_d_true = 0
-    running_dis_fake = 0
-    G.eval()
-    D.eval()
-    with torch.no_grad():
-        for i, data in enumerate(test_loader):
-            # compute D loss
-            x = data[0].to(device)
-            y = data[1].to(device)
-            x = F.pad(x, (2, 2, 2, 2), mode='reflect')
-            z = generate_z(args.batchsize).to(device)
-            
-            dis_real = D(x, y)
-            dis_fake = D(G(z, y), y)
+    if n_iter % args.test_interval == 0:
+        G.eval()
+        D.eval()
+        with torch.no_grad():
+            for i, data in enumerate(test_loader):
+                # compute D loss
+                x, y = next(train_loader)
+                x, y = x.to(device), y.to(device)
+                x = F.pad(x, (2, 2, 2, 2), mode='reflect')
+                z = generate_z(args.batchsize).to(device)
+                
+                dis_real = D(x, y)
+                dis_fake = D(G(z, y), y)
 
-            dis_loss = dis_criterion(dis_fake, dis_real)
-            running_dis_loss += dis_loss.item()
-            
-            # computer G loss
-            z = generate_z(args.batchsize).to(device)
+                dis_loss = dis_criterion(dis_fake, dis_real)
+                test_running_dis_loss += dis_loss.item()
+                
+                # computer G loss
+                z = generate_z(args.batchsize).to(device)
 
-            dis_fake = D(G(z, y), y)
-            gen_loss = gen_criterion(dis_fake)
-            running_gen_loss += gen_loss.item()
+                dis_fake = D(G(z, y), y)
+                gen_loss = gen_criterion(dis_fake)
+                test_running_gen_loss += gen_loss.item()
 
-    running_dis_loss = running_dis_loss / len(test_loader)
-    running_gen_loss = running_gen_loss / len(test_loader)
-    training_history[2, epoch] = running_dis_loss
-    training_history[3, epoch] = running_gen_loss
-    print('test loss: {}'.format(running_dis_loss + running_gen_loss),
-            flush=True)
+        test_running_dis_loss = test_running_dis_loss / len(test_loader)
+        test_running_gen_loss = teet_running_gen_loss / len(test_loader)
 
-    if (epoch+1) % args.save_img == 0:
+        training_history[2].append(test_running_dis_loss)
+        training_history[3].append(test_running_gen_loss)
+        print('test dis loss: {}'.format(test_running_dis_loss), flush=True)
+        print('test gen loss: {}'.format(test_running_dis_loss), flush=True)
+
+        # plot training history
+        plt.plot(np.arange(1, n_iter, args.test_interval), training_history[0], label='Train D Loss')
+        plt.plot(np.arange(1, n_iter, args.test_interval), training_history[1], label='Train G Loss')
+        plt.plot(np.arange(1, n_iter, args.test_interval), training_history[2], label='Test D Loss')
+        plt.plot(np.arange(1, n_iter, args.test_interval), training_history[3], label='Test G Loss')
+        plt.legend()
+        plt.savefig('{}/loss.png'.format(args.log))
+        plt.close()
+
+    if n_iter % args.visualize_interval == 0:
         for i in range(6):
             generated_img = G(generate_z(100).to(device),
                 torch.LongTensor([i]*100).to(device))
@@ -204,18 +228,9 @@ for epoch in tqdm(range(args.epochs)):
                         'img/{}_{}.png'.format(epoch+1, i+1))),
                     nrow=10)
 
-    if (epoch+1) % args.checkpoint == 0:
+    if n_iter % args.checkpoint_interval == 0:
         # save model weights
         torch.save(D.state_dict(),
                 os.path.join(args.log, 'D_ep{}.pt'.format(epoch+1)))
         torch.save(G.state_dict(),
                 os.path.join(args.log, 'G_ep{}.pt'.format(epoch+1)))
-        
-    # plot training history
-    plt.plot(np.arange(args.epochs), training_history[0], label='Train D Loss')
-    plt.plot(np.arange(args.epochs), training_history[1], label='Train G Loss')
-    plt.plot(np.arange(args.epochs), training_history[2], label='Test D Loss')
-    plt.plot(np.arange(args.epochs), training_history[3], label='Test G Loss')
-    plt.legend()
-    plt.savefig('{}/loss.png'.format(args.log))
-    plt.close()
